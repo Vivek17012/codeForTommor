@@ -1,35 +1,33 @@
-//const { DataTypes } = require('sequelize');
+const { Model, DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
-'use strict';
-const { Model } = require('sequelize');
 
-module.exports = (sequelize, DataTypes) => {
-  class Service extends Model {
-    static associate(models) {
-      Service.belongsTo(models.Category, { foreignKey: 'categoryId' });
-    }
+class Service extends Model {
+  static associate(models) {
+    Service.belongsTo(models.Category, { foreignKey: 'categoryId' });
   }
-  Service.init(
-    {
-      categoryId: {
-        type: DataTypes.INTEGER,
-        allowNull: false,
-      },
-      name: {
-        type: DataTypes.STRING,
-        allowNull: false,
-      },
-      type: {
-        type: DataTypes.STRING,
-      },
-      priceOptions: {
-        type: DataTypes.JSONB,
-      },
+}
+
+Service.init(
+  {
+    name: {
+      type: DataTypes.STRING,
+      allowNull: false,
     },
-    {
-      sequelize,
-      modelName: 'Service',
-    }
-  );
-  return Service;
-};
+    type: {
+      type: DataTypes.STRING,
+      allowNull: false,
+    },
+    priceOptions: {
+      type: DataTypes.STRING,
+      allowNull: true, // Adjust this based on your requirements
+    },
+    // Add other attributes as needed
+  },
+  {
+    sequelize,
+    modelName: 'Service',
+  }
+);
+
+module.exports = Service;
+
