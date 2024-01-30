@@ -3,10 +3,9 @@ const express = require('express');
 const sequelize = require('./config/database');
 const jwt = require('jsonwebtoken');
 const bodyParser = require('body-parser');
-const { codeForTommorow } = require('./model/codeForTommorow');
-//const services =require("./model/services");
-const services = require('./model/services');
+const Service = require('./model/service');
 const SECRET_KEY = 'your_secret_key_here';
+const Category = require("./model/category");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -63,7 +62,7 @@ function generateToken() {
     const { name } = req.body;
 
     try {
-      // Create a new category in the database
+      
       const newCategory = await Category.create({ name });
   
       res.json(newCategory);
@@ -72,8 +71,18 @@ function generateToken() {
       res.sendStatus(500);
     }
   })
-  app.get('/categories', authenticateToken, (req, res) => {
-    res.json(categories);
+  app.get('/categories', authenticateToken, async (req, res) => {
+    try {
+      
+      const categories = await Category.findAll({
+        include: Service, 
+      });
+  
+      res.json(categories);
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+      res.sendStatus(500);
+    }
   });
   app.put('/category/:categoryId', authenticateToken, async (req, res) => {
     const categoryId = parseInt(req.params.categoryId);
@@ -173,7 +182,7 @@ app.get('/category/:categoryId/services', authenticateToken, async (req, res) =>
   app.delete('/service/:ServiceID', async (req, res) => {
     try {
       const ServiceID = req.params.ServiceID;
-      const service = await Student.findByPk(ServiceID);
+      const service = await Service.findByPk(ServiceID);
   
       if (!service) {
         return res.status(404).json({ error: 'Student not found' });
