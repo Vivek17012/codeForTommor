@@ -6,6 +6,7 @@ const bodyParser = require('body-parser');
 const { codeForTommorow } = require('./model/codeForTommorow');
 //const services =require("./model/services");
 const services = require('./model/services');
+const SECRET_KEY = 'your_secret_key_here';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -58,60 +59,117 @@ function generateToken() {
   });
   
 
-  app.post('/category', authenticateToken, (req, res) => {
+  app.post('/category', authenticateToken, async(req, res) => {
     const { name } = req.body;
-    const newCategory = { id: categories.length + 1, name, services: [] };
-    categories.push(newCategory);
-    res.json(newCategory);
-  });
+
+    try {
+      // Create a new category in the database
+      const newCategory = await Category.create({ name });
+  
+      res.json(newCategory);
+    } catch (error) {
+      console.error('Error creating category:', error);
+      res.sendStatus(500);
+    }
+  })
   app.get('/categories', authenticateToken, (req, res) => {
     res.json(categories);
   });
-  app.put('/category/:categoryId', authenticateToken, (req, res) => {
+  app.put('/category/:categoryId', authenticateToken, async (req, res) => {
     const categoryId = parseInt(req.params.categoryId);
     const { name } = req.body;
-    const category = categories.find((c) => c.id === categoryId);
-    if (category) {
-      category.name = name;
-      res.json(category);
-    } else {
-      res.sendStatus(404);
+  
+    try {
+      
+      const category = await Category.findByPk(categoryId);
+  
+      if (category) {
+        
+        category.name = name;
+  
+      
+        await category.save();
+  
+        res.json(category);
+      } else {
+        res.sendStatus(404);
+      }
+    } catch (error) {
+      console.error('Error updating category:', error);
+      res.sendStatus(500);
     }
   });
-  app.delete('/category/:categoryId', authenticateToken, (req, res) => {
+  app.delete('/category/:categoryId', authenticateToken, async (req, res) => {
     const categoryId = parseInt(req.params.categoryId);
-    const index = categories.findIndex((c) => c.id === categoryId && c.services.length === 0);
-    if (index !== -1) {
-      const deletedCategory = categories.splice(index, 1)[0];
-      res.json(deletedCategory);
-    } else {
-      res.sendStatus(404);
+  
+    try {
+      
+      const category = await Category.findByPk(categoryId);
+  
+      if (category) {
+        
+        const servicesCount = await Service.count({ where: { categoryId } });
+        if (servicesCount === 0) {
+          
+          await category.destroy();
+          res.json(category);
+        } else {
+          res.status(400).json({ error: 'Category has associated services and cannot be deleted' });
+        }
+      } else {
+        res.sendStatus(404);
+      }
+    } catch (error) {
+      console.error('Error deleting category:', error);
+      res.sendStatus(500);
     }
   });
-  app.post('/category/:categoryId/service', authenticateToken, (req, res) => {
+  app.post('/category/:categoryId/service', authenticateToken, async (req, res) => {
     const categoryId = parseInt(req.params.categoryId);
     const { name, type, priceOptions } = req.body;
   
-    const category = categories.find((c) => c.id === categoryId);
-    if (category) {
-      const newService = { id: services.length + 1, categoryId, name, type, priceOptions };
-      services.push(newService);
-      category.services.push(newService.id);
-      res.json(newService);
-    } else {
-      res.sendStatus(404);
+    try {
+    
+      const category = await Category.findByPk(categoryId);
+  
+      if (category) {
+        
+        const newService = await Service.create({ categoryId, name, type, priceOptions });
+  
+        
+        category.services.push(newService.id);
+        await category.save();
+  
+        res.json(newService);
+      } else {
+        res.sendStatus(404);
+      }
+    } catch (error) {
+      console.error('Error creating service:', error);
+      res.sendStatus(500);
     }
   });
-  app.get('/category/:categoryId/services', authenticateToken, (req, res) => {
-    const categoryId = parseInt(req.params.categoryId);
-    const category = categories.find((c) => c.id === categoryId);
+  
+app.get('/category/:categoryId/services', authenticateToken, async (req, res) => {
+  const categoryId = parseInt(req.params.categoryId);
+
+  try {
+    const category = await Category.findByPk(categoryId, {
+      include: Service, 
+    });
+
     if (category) {
-      const categoryServices = services.filter((s) => s.categoryId === categoryId);
+      
+      const categoryServices = category.services;
       res.json(categoryServices);
     } else {
       res.sendStatus(404);
     }
-  });
+  } catch (error) {
+    console.error('Error fetching category services:', error);
+    res.sendStatus(500);
+  }
+});
   app.delete('/service/:ServiceID', async (req, res) => {
     try {
       const ServiceID = req.params.ServiceID;
